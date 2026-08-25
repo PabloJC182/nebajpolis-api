@@ -10,6 +10,10 @@ module.exports = (sequelize, Sequelize) => {
     },
     birthDate: {
       type: Sequelize.DATEONLY
+    },
+    // Texto biografico corto para la pantalla de reparto. Opcional.
+    biography: {
+      type: Sequelize.TEXT
     }
   });
   return Person;

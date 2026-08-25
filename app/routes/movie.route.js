@@ -14,6 +14,8 @@ module.exports = app => {
   router.post("/create/", [verifyToken, isAdmin], movies.create);
   router.put("/update/:id", [verifyToken, isAdmin], movies.update);
   router.delete("/delete/:id", [verifyToken, isAdmin], movies.delete);
+  router.post("/:id/cast", [verifyToken, isAdmin], movies.addCast);
+  router.delete("/:id/cast/:personId", [verifyToken, isAdmin], movies.removeCast);
 
   app.use("/api/movies", router);
 };

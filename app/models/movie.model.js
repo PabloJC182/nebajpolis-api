@@ -22,6 +22,11 @@ module.exports = (sequelize, Sequelize) => {
     posterUrl: {
       type: Sequelize.STRING
     },
+    // Imagen panoramica opcional para el banner destacado del home (distinta
+    // al poster vertical). Si esta vacia, el frontend cae de vuelta a posterUrl.
+    backdropUrl: {
+      type: Sequelize.STRING
+    },
     originalLanguage: {
       type: Sequelize.STRING
     },

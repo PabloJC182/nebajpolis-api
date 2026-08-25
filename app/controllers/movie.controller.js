@@ -16,6 +16,7 @@ exports.create = (req, res) => {
     releaseDate: req.body.releaseDate,
     rating: req.body.rating,
     posterUrl: req.body.posterUrl,
+    backdropUrl: req.body.backdropUrl,
     originalLanguage: req.body.originalLanguage,
     status: req.body.status !== undefined ? req.body.status : true
   })
@@ -118,4 +119,32 @@ exports.delete = (req, res) => {
     .catch(err => {
       res.status(500).send({ message: "Error al eliminar la pelicula con id=" + id });
     });
+};
+
+// Agrega una persona al reparto de la pelicula, con su role (ej. "actor", "director")
+exports.addCast = (req, res) => {
+  const movieId = req.params.id;
+  const { personId, role } = req.body;
+
+  if (!personId || !role) {
+    return res.status(400).send({ message: "personId y role son requeridos." });
+  }
+
+  db.movieCasts
+    .create({ movieId: movieId, personId: personId, role: role })
+    .then(data => res.send(data))
+    .catch(err => res.status(500).send({ message: err.message || "Ocurrio un error al agregar al reparto." }));
+};
+
+// Quita a una persona del reparto de la pelicula
+exports.removeCast = (req, res) => {
+  const { id: movieId, personId } = req.params;
+
+  db.movieCasts
+    .destroy({ where: { movieId: movieId, personId: personId } })
+    .then(num => {
+      if (num >= 1) res.send({ message: "Se quito a la persona del reparto." });
+      else res.send({ message: "Esa persona no estaba en el reparto de esta pelicula." });
+    })
+    .catch(err => res.status(500).send({ message: err.message || "Ocurrio un error al quitar del reparto." }));
 };
