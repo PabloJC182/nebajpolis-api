@@ -2,9 +2,11 @@
 const stripe = require("stripe")(process.env.STRIPE_SECRET_KEY);
 const db = require("../models");
 
-// Crea una sesion de pago de Stripe Checkout a partir de una venta ya creada.
+// Crea un Payment Intent a partir de una venta ya creada.
+// A diferencia de Checkout, esto NO redirige a Stripe: el frontend usa el
+// clientSecret devuelto para confirmar el pago con Stripe Elements sin salir de la página.
 // Body esperado: { saleId }
-exports.crearSesion = async (req, res) => {
+exports.crearPaymentIntent = async (req, res) => {
   try {
     const { saleId } = req.body;
     if (!saleId) {
@@ -36,21 +38,11 @@ exports.crearSesion = async (req, res) => {
     // Stripe trabaja en la unidad minima de la moneda (centavos)
     const montoEnCentavos = Math.round(parseFloat(sale.totalAmount) * 100);
 
-    const session = await stripe.checkout.sessions.create({
-      payment_method_types: ["card"],
-      line_items: [
-        {
-          price_data: {
-            currency: "usd",
-            product_data: { name: `Compra de boletos - Venta #${sale.id}` },
-            unit_amount: montoEnCentavos
-          },
-          quantity: 1
-        }
-      ],
-      mode: "payment",
-      success_url: `${process.env.CORS_ORIGIN}/pago-exitoso?session_id={CHECKOUT_SESSION_ID}`,
-      cancel_url: `${process.env.CORS_ORIGIN}/pago-cancelado`
+    const paymentIntent = await stripe.paymentIntents.create({
+      amount: montoEnCentavos,
+      currency: "usd",
+      automatic_payment_methods: { enabled: true },
+      metadata: { saleId: sale.id.toString() }
     });
 
     // Registramos el intento de pago; el webhook lo actualizara a "completed" cuando Stripe confirme
@@ -58,12 +50,12 @@ exports.crearSesion = async (req, res) => {
       saleId: sale.id,
       amount: sale.totalAmount,
       status: "pending",
-      stripeSessionId: session.id
+      stripePaymentIntentId: paymentIntent.id
     });
 
-    res.status(200).send({ id: session.id, url: session.url });
+    res.status(200).send({ clientSecret: paymentIntent.client_secret });
   } catch (error) {
-    res.status(500).send({ message: error.message || "Error al crear la sesion de pago." });
+    res.status(500).send({ message: error.message || "Error al crear el Payment Intent." });
   }
 };
 
@@ -80,19 +72,31 @@ exports.webhook = (req, res) => {
   }
 
   switch (evento.type) {
-    case "checkout.session.completed": {
-      const session = evento.data.object;
+    case "payment_intent.succeeded": {
+      const paymentIntent = evento.data.object;
 
-      db.payments.findOne({ where: { stripeSessionId: session.id } })
+      db.payments.findOne({ where: { stripePaymentIntentId: paymentIntent.id } })
         .then(payment => {
           if (!payment) {
-            console.log("Webhook recibido para una sesion sin pago registrado:", session.id);
+            console.log("Webhook recibido para un payment intent sin pago registrado:", paymentIntent.id);
             return;
           }
           payment.status = "completed";
           return payment.save().then(() => {
             return db.sales.update({ status: "paid" }, { where: { id: payment.saleId } });
           });
+        })
+        .catch(err => console.log("Error al procesar el webhook de Stripe:", err.message));
+      break;
+    }
+    case "payment_intent.payment_failed": {
+      const paymentIntent = evento.data.object;
+
+      db.payments.findOne({ where: { stripePaymentIntentId: paymentIntent.id } })
+        .then(payment => {
+          if (!payment) return;
+          payment.status = "failed";
+          return payment.save();
         })
         .catch(err => console.log("Error al procesar el webhook de Stripe:", err.message));
       break;
