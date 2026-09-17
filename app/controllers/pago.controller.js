@@ -38,12 +38,13 @@ exports.crearPaymentIntent = async (req, res) => {
     // Stripe trabaja en la unidad minima de la moneda (centavos)
     const montoEnCentavos = Math.round(parseFloat(sale.totalAmount) * 100);
 
-    const paymentIntent = await stripe.paymentIntents.create({
-      amount: montoEnCentavos,
-      currency: "usd",
-      automatic_payment_methods: { enabled: true },
-      metadata: { saleId: sale.id.toString() }
-    });
+// pago.controller.js — dentro de crearPaymentIntent
+const paymentIntent = await stripe.paymentIntents.create({
+  amount: montoEnCentavos,
+  currency: "usd",
+  payment_method_types: ["card"], // en vez de automatic_payment_methods
+  metadata: { saleId: sale.id.toString() }
+});
 
     // Registramos el intento de pago; el webhook lo actualizara a "completed" cuando Stripe confirme
     await db.payments.create({
