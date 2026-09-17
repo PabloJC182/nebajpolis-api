@@ -15,8 +15,8 @@ module.exports = (sequelize, Sequelize) => {
       type: Sequelize.STRING,
       defaultValue: "pending"
     },
-    // id de la sesion de Stripe Checkout, util para conciliar con el webhook
-    stripeSessionId: {
+    // id del Payment Intent de Stripe, util para conciliar con el webhook
+    stripePaymentIntentId: {
       type: Sequelize.STRING
     }
   });
