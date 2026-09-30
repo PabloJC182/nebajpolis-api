@@ -1,4 +1,4 @@
-// app/routes/pago.route.js
+
 module.exports = (app) => {
   const controller = require("../controllers/pago.controller.js");
   const { verifyToken } = require("../middlewares/authJwt.js");

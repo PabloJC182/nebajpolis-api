@@ -1,4 +1,4 @@
-// app/models/person.model.js
+
 module.exports = (sequelize, Sequelize) => {
   const Person = sequelize.define("person", {
     fullName: {
@@ -11,7 +11,7 @@ module.exports = (sequelize, Sequelize) => {
     birthDate: {
       type: Sequelize.DATEONLY
     },
-    // Texto biografico corto para la pantalla de reparto. Opcional.
+    
     biography: {
       type: Sequelize.TEXT
     }

@@ -1,4 +1,4 @@
-// app/routes/auth.route.js
+
 module.exports = app => {
   const auth = require("../controllers/auth.controller.js");
   var router = require("express").Router();

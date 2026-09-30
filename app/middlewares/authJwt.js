@@ -1,9 +1,9 @@
-// app/middlewares/authJwt.js
+
 const jwt = require("jsonwebtoken");
 const authConfig = require("../config/auth.config.js");
 
 verifyToken = (req, res, next) => {
-  // El token viaja en el header "x-access-token" o en "Authorization: Bearer <token>"
+  
   let token = req.headers["x-access-token"] || req.headers["authorization"];
 
   if (token && token.startsWith("Bearer ")) {
@@ -19,15 +19,15 @@ verifyToken = (req, res, next) => {
       return res.status(401).send({ message: "No autorizado: token invalido o expirado." });
     }
     req.userId = decoded.id;
-    // Disponible para chequeos rapidos (ej. "es el dueño o es admin"); para decisiones
-    // sensibles de autorizacion se sigue usando isAdmin, que consulta la BD directamente.
+    
+    
     req.userRole = decoded.role;
     next();
   });
 };
 
-// Verifica que el usuario autenticado tenga rol "admin".
-// Debe usarse SIEMPRE despues de verifyToken, ya que depende de req.userId.
+
+
 isAdmin = (req, res, next) => {
   const db = require("../models");
   db.appUsers.findByPk(req.userId)

@@ -1,4 +1,4 @@
-// app/routes/promotion.route.js
+
 module.exports = app => {
   const promotions = require("../controllers/promotion.controller.js");
   const { verifyToken, isAdmin } = require("../middlewares/authJwt.js");

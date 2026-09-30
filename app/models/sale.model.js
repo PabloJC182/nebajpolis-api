@@ -1,4 +1,4 @@
-// app/models/sale.model.js
+
 module.exports = (sequelize, Sequelize) => {
   const Sale = sequelize.define("sale", {
     saleDate: {
@@ -9,7 +9,7 @@ module.exports = (sequelize, Sequelize) => {
       type: Sequelize.DECIMAL(10, 2),
       allowNull: false
     },
-    // "pending", "paid", "cancelled"
+    
     status: {
       type: Sequelize.STRING,
       defaultValue: "pending"

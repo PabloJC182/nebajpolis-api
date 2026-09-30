@@ -1,4 +1,4 @@
-// app/models/genre.model.js
+
 module.exports = (sequelize, Sequelize) => {
   const Genre = sequelize.define("genre", {
     name: {

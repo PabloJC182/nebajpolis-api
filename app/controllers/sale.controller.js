@@ -1,10 +1,10 @@
-// app/controllers/sale.controller.js
+
 const db = require("../models");
 const Op = db.Sequelize.Op;
 
-// Crea una venta completa: valida asientos disponibles, aplica promocion si aplica,
-// y crea la venta junto con sus boletos dentro de una misma transaccion.
-// Body esperado: { showId, seatIds: [1, 2, 3], promotionId (opcional) }
+
+
+
 exports.create = async (req, res) => {
   const { showId, seatIds, promotionId } = req.body;
 
@@ -21,8 +21,8 @@ exports.create = async (req, res) => {
       return res.status(404).send({ message: `Funcion con id=${showId} no encontrada.` });
     }
 
-    // Bloqueamos las filas de boletos existentes para estos asientos+funcion mientras
-    // dura la transaccion, para que dos ventas simultaneas no pasen ambas esta validacion.
+    
+    
     const asientosOcupados = await db.tickets.findAll({
       where: { showId: showId, seatId: { [Op.in]: seatIds } },
       transaction: t,
@@ -37,7 +37,7 @@ exports.create = async (req, res) => {
       });
     }
 
-    // Precio base de la funcion, con descuento de promocion si es valida y esta vigente
+    
     let precioUnitario = parseFloat(show.basePrice);
 
     if (promotionId) {
@@ -73,21 +73,21 @@ exports.create = async (req, res) => {
 
     await t.commit();
 
-    // Le decimos al frontend hasta cuando tiene reservados estos asientos antes
-    // de que el job de expireSales.job.js los libere automaticamente.
+    
+    
     const holdMinutes = parseInt(process.env.SALE_HOLD_MINUTES || "10", 10);
     const expiresAt = new Date(sale.saleDate.getTime() + holdMinutes * 60 * 1000);
 
     res.send({ sale, tickets, expiresAt });
   } catch (err) {
     await t.rollback();
-    // Si el error viene del indice unico showId+seatId, otra venta gano la carrera
-    // por el mismo asiento entre la verificacion y el commit.
+    
+    
     res.status(500).send({ message: err.message || "Ocurrio un error al procesar la venta." });
   }
 };
 
-// Ventas del usuario autenticado (historial de compras propio)
+
 exports.findMine = (req, res) => {
   db.sales.findAll({
     where: { userId: req.userId },
@@ -98,7 +98,7 @@ exports.findMine = (req, res) => {
     .catch(err => res.status(500).send({ message: err.message || "Ocurrio un error al obtener tus ventas." }));
 };
 
-// Listado completo, solo para administradores (reportes de ventas)
+
 exports.findAll = (req, res) => {
   db.sales.findAll({
     include: [db.appUsers, { model: db.tickets, include: [db.seats, db.shows] }],
@@ -108,7 +108,7 @@ exports.findAll = (req, res) => {
     .catch(err => res.status(500).send({ message: err.message || "Ocurrio un error al listar las ventas." }));
 };
 
-// Obtener una venta por id: el dueño de la venta o un administrador pueden verla
+
 exports.findOne = (req, res) => {
   const id = req.params.id;
 

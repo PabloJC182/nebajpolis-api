@@ -1,4 +1,4 @@
-// app/models/promotion.model.js
+
 module.exports = (sequelize, Sequelize) => {
   const Promotion = sequelize.define("promotion", {
     name: {

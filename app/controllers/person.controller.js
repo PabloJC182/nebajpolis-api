@@ -1,4 +1,4 @@
-// app/controllers/person.controller.js
+
 const db = require("../models");
 const Person = db.persons;
 

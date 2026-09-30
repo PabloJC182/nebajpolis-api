@@ -1,9 +1,9 @@
-// app/controllers/show.controller.js
+
 const db = require("../models");
 const Show = db.shows;
 const Op = db.Sequelize.Op;
 
-// Create and save a new Show, con promociones asociadas si se envian
+
 exports.create = (req, res) => {
   if (!req.body.movieId || !req.body.roomId || !req.body.showDatetime || !req.body.basePrice) {
     return res.status(400).send({ message: "movieId, roomId, showDatetime y basePrice son requeridos." });
@@ -18,7 +18,7 @@ exports.create = (req, res) => {
     status: req.body.status !== undefined ? req.body.status : true
   })
     .then(show => {
-      // req.body.promotionIds: arreglo opcional de ids de promociones aplicables, ej. [1, 2]
+      
       if (req.body.promotionIds && req.body.promotionIds.length > 0) {
         return show.setPromotions(req.body.promotionIds).then(() => show);
       }
@@ -28,7 +28,7 @@ exports.create = (req, res) => {
     .catch(err => res.status(500).send({ message: err.message || "Ocurrio un error al crear la funcion." }));
 };
 
-// Retrieve all Shows, con filtros opcionales por pelicula, sala o rango de fecha
+
 exports.findAll = (req, res) => {
   const { movieId, roomId, from, to } = req.query;
   const condition = {};
@@ -56,8 +56,8 @@ exports.findOne = (req, res) => {
     .catch(err => res.status(500).send({ message: "Error al obtener la funcion con id=" + id }));
 };
 
-// Devuelve todos los asientos de la sala de la funcion, marcando cuales ya estan vendidos.
-// Es la base para la pantalla de seleccion de asientos del frontend.
+
+
 exports.findAvailableSeats = (req, res) => {
   const id = req.params.id;
 
@@ -76,13 +76,13 @@ exports.findAvailableSeats = (req, res) => {
       });
     })
     .then(seats => {
-      if (!seats) return; // ya se respondio 404 arriba
+      if (!seats) return; 
       const seatsConDisponibilidad = seats.map(seat => ({
         id: seat.id,
         rowLabel: seat.rowLabel,
         seatNumber: seat.seatNumber,
         seatType: seat.seatType,
-        // Si el include trajo algun ticket para esta funcion, el asiento ya esta ocupado
+        
         available: seat.tickets.length === 0
       }));
       res.send(seatsConDisponibilidad);

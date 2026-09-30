@@ -1,4 +1,4 @@
-// app/controllers/seat.controller.js
+
 const db = require("../models");
 const Seat = db.seats;
 
@@ -17,8 +17,8 @@ exports.create = (req, res) => {
     .catch(err => res.status(500).send({ message: err.message || "Ocurrio un error al crear el asiento." }));
 };
 
-// Creacion masiva: arma de un solo request todo el layout de asientos de una sala.
-// Body esperado: { roomId, seats: [{ rowLabel, seatNumber, seatType }, ...] }
+
+
 exports.createBulk = (req, res) => {
   const { roomId, seats } = req.body;
 
@@ -33,7 +33,7 @@ exports.createBulk = (req, res) => {
     .catch(err => res.status(500).send({ message: err.message || "Ocurrio un error al crear los asientos." }));
 };
 
-// Retrieve all Seats de una sala especifica (?roomId=)
+
 exports.findAll = (req, res) => {
   const roomId = req.query.roomId;
   const condition = roomId ? { roomId: roomId } : null;

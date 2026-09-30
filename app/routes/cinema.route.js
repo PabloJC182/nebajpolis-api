@@ -1,4 +1,4 @@
-// app/routes/cinema.route.js
+
 module.exports = app => {
   const cinemas = require("../controllers/cinema.controller.js");
   const { verifyToken, isAdmin } = require("../middlewares/authJwt.js");

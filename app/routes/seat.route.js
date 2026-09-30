@@ -1,4 +1,4 @@
-// app/routes/seat.route.js
+
 module.exports = app => {
   const seats = require("../controllers/seat.controller.js");
   const { verifyToken, isAdmin } = require("../middlewares/authJwt.js");

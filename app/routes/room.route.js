@@ -1,4 +1,4 @@
-// app/routes/room.route.js
+
 module.exports = app => {
   const rooms = require("../controllers/room.controller.js");
   const { verifyToken, isAdmin } = require("../middlewares/authJwt.js");

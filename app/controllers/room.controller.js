@@ -1,4 +1,4 @@
-// app/controllers/room.controller.js
+
 const db = require("../models");
 const Room = db.rooms;
 
@@ -17,7 +17,7 @@ exports.create = (req, res) => {
     .catch(err => res.status(500).send({ message: err.message || "Ocurrio un error al crear la sala." }));
 };
 
-// Retrieve all Rooms, con filtro opcional por cine (?cinemaId=)
+
 exports.findAll = (req, res) => {
   const cinemaId = req.query.cinemaId;
   const condition = cinemaId ? { cinemaId: cinemaId } : null;

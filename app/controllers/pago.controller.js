@@ -1,11 +1,11 @@
-// app/controllers/pago.controller.js
+
 const stripe = require("stripe")(process.env.STRIPE_SECRET_KEY);
 const db = require("../models");
 
-// Crea un Payment Intent a partir de una venta ya creada.
-// A diferencia de Checkout, esto NO redirige a Stripe: el frontend usa el
-// clientSecret devuelto para confirmar el pago con Stripe Elements sin salir de la página.
-// Body esperado: { saleId }
+
+
+
+
 exports.crearPaymentIntent = async (req, res) => {
   try {
     const { saleId } = req.body;
@@ -27,26 +27,26 @@ exports.crearPaymentIntent = async (req, res) => {
       return res.status(409).send({ message: `Esta venta ya se encuentra en estado "${sale.status}".` });
     }
 
-    // Doble chequeo por tiempo: cubre el margen de hasta 1 minuto entre que la reserva
-    // vence y el job expireSales.job.js la marca como "expired".
+    
+    
     const holdMinutes = parseInt(process.env.SALE_HOLD_MINUTES || "10", 10);
     const vencidaEn = new Date(sale.saleDate.getTime() + holdMinutes * 60 * 1000);
     if (new Date() > vencidaEn) {
       return res.status(409).send({ message: "El tiempo de reserva de estos asientos ya vencio. Intenta la compra de nuevo." });
     }
 
-    // Stripe trabaja en la unidad minima de la moneda (centavos)
+    
     const montoEnCentavos = Math.round(parseFloat(sale.totalAmount) * 100);
 
-// pago.controller.js — dentro de crearPaymentIntent
+
 const paymentIntent = await stripe.paymentIntents.create({
   amount: montoEnCentavos,
   currency: "usd",
-  payment_method_types: ["card"], // en vez de automatic_payment_methods
+  payment_method_types: ["card"], 
   metadata: { saleId: sale.id.toString() }
 });
 
-    // Registramos el intento de pago; el webhook lo actualizara a "completed" cuando Stripe confirme
+    
     await db.payments.create({
       saleId: sale.id,
       amount: sale.totalAmount,
@@ -60,8 +60,8 @@ const paymentIntent = await stripe.paymentIntents.create({
   }
 };
 
-// Endpoint llamado directamente por Stripe (no por el frontend). Requiere el body crudo,
-// ver la nota en server.js sobre por que se registra antes de bodyParser.json().
+
+
 exports.webhook = (req, res) => {
   const sig = req.headers["stripe-signature"];
   let evento;

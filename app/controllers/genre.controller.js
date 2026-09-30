@@ -1,8 +1,8 @@
-// app/controllers/genre.controller.js
+
 const db = require("../models");
 const Genre = db.genres;
 
-// Crear un nuevo genero
+
 exports.create = (req, res) => {
   if (!req.body.name) {
     return res.status(400).send({ message: "El nombre del genero es requerido." });
@@ -19,7 +19,7 @@ exports.create = (req, res) => {
     });
 };
 
-// Listar todos los generos
+
 exports.findAll = (req, res) => {
   Genre.findAll()
     .then(data => {
@@ -32,7 +32,7 @@ exports.findAll = (req, res) => {
     });
 };
 
-// Obtener un genero por id
+
 exports.findOne = (req, res) => {
   const id = req.params.id;
 
@@ -48,7 +48,7 @@ exports.findOne = (req, res) => {
     });
 };
 
-// Actualizar un genero por id
+
 exports.update = (req, res) => {
   const id = req.params.id;
 
@@ -65,7 +65,7 @@ exports.update = (req, res) => {
     });
 };
 
-// Eliminar un genero por id
+
 exports.delete = (req, res) => {
   const id = req.params.id;
 

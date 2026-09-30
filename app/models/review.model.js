@@ -1,4 +1,4 @@
-// app/models/review.model.js
+
 module.exports = (sequelize, Sequelize) => {
   const Review = sequelize.define("review", {
     rating: {

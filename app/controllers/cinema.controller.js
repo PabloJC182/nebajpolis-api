@@ -1,4 +1,4 @@
-// app/controllers/cinema.controller.js
+
 const db = require("../models");
 const Cinema = db.cinemas;
 

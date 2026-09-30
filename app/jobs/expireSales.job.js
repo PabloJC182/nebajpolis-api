@@ -1,9 +1,9 @@
-// app/jobs/expireSales.job.js
-// Libera los asientos de ventas que quedaron en estado "pending" (el usuario
-// selecciono asientos pero nunca completo el pago) despues de SALE_HOLD_MINUTES.
-//
-// Borra los tickets asociados (esto es lo que realmente libera el asiento, gracias
-// al indice unico showId+seatId en el modelo Ticket) y marca la venta como "expired".
+
+
+
+
+
+
 module.exports = (db) => {
   const HOLD_MINUTES = parseInt(process.env.SALE_HOLD_MINUTES || "10", 10);
 

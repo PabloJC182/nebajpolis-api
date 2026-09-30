@@ -1,4 +1,4 @@
-// app/controllers/promotion.controller.js
+
 const db = require("../models");
 const Promotion = db.promotions;
 
@@ -25,7 +25,7 @@ exports.findAll = (req, res) => {
     .catch(err => res.status(500).send({ message: err.message || "Ocurrio un error al listar las promociones." }));
 };
 
-// Solo las promociones vigentes hoy, utiles para mostrar en el frontend publico
+
 exports.findAllActive = (req, res) => {
   const now = new Date();
   Promotion.findAll({

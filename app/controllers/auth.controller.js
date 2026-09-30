@@ -1,4 +1,4 @@
-// app/controllers/auth.controller.js
+
 const db = require("../models");
 const config = require("../config/auth.config.js");
 const AppUser = db.appUsers;
@@ -6,13 +6,13 @@ const AppUser = db.appUsers;
 const bcrypt = require("bcryptjs");
 const jwt = require("jsonwebtoken");
 
-// Registro de un nuevo usuario (cliente por defecto)
+
 exports.signup = (req, res) => {
   if (!req.body.email || !req.body.password) {
     return res.status(400).send({ message: "email y password son requeridos." });
   }
 
-  // Ciframos la contraseña ANTES de guardarla; nunca se guarda en texto plano
+  
   const hashedPassword = bcrypt.hashSync(req.body.password, 8);
 
   AppUser.create({
@@ -20,7 +20,7 @@ exports.signup = (req, res) => {
     email: req.body.email,
     password: hashedPassword,
     phone: req.body.phone,
-    // El rol "admin" NUNCA se asigna desde el body publico; se cambia manualmente en la BD
+    
     role: "customer"
   })
     .then(user => {
@@ -31,7 +31,7 @@ exports.signup = (req, res) => {
     });
 };
 
-// Inicio de sesion: valida que el usuario exista y que la contraseña coincida
+
 exports.signin = (req, res) => {
   AppUser.findOne({ where: { email: req.body.email } })
     .then(user => {

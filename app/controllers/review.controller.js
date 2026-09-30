@@ -1,9 +1,9 @@
-// app/controllers/review.controller.js
+
 const db = require("../models");
 const Review = db.reviews;
 
-// Crear una reseña. El usuario sale del token, nunca del body, para que nadie
-// pueda publicar una reseña a nombre de otra persona.
+
+
 exports.create = (req, res) => {
   if (!req.body.movieId || !req.body.rating) {
     return res.status(400).send({ message: "movieId y rating son requeridos." });
@@ -19,7 +19,7 @@ exports.create = (req, res) => {
     .catch(err => res.status(500).send({ message: err.message || "Ocurrio un error al crear la reseña." }));
 };
 
-// Retrieve all Reviews de una pelicula especifica (?movieId=)
+
 exports.findAll = (req, res) => {
   const movieId = req.query.movieId;
   const condition = movieId ? { movieId: movieId } : null;
@@ -44,7 +44,7 @@ exports.findOne = (req, res) => {
     .catch(err => res.status(500).send({ message: "Error al obtener la reseña con id=" + id }));
 };
 
-// Solo el autor de la reseña (o un administrador) puede editarla
+
 exports.update = async (req, res) => {
   const id = req.params.id;
 
@@ -62,7 +62,7 @@ exports.update = async (req, res) => {
   }
 };
 
-// Solo el autor de la reseña (o un administrador) puede borrarla
+
 exports.delete = async (req, res) => {
   const id = req.params.id;
 

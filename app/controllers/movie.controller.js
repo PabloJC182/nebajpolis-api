@@ -1,9 +1,9 @@
-// app/controllers/movie.controller.js
+
 const db = require("../models");
 const Movie = db.movies;
 const Op = db.Sequelize.Op;
 
-// Create and save a new Movie, con sus generos asociados si se envian
+
 exports.create = (req, res) => {
   if (!req.body.title || !req.body.durationMinutes) {
     return res.status(400).send({ message: "title y durationMinutes son requeridos." });
@@ -21,7 +21,7 @@ exports.create = (req, res) => {
     status: req.body.status !== undefined ? req.body.status : true
   })
     .then(movie => {
-      // req.body.genreIds: arreglo opcional de ids de generos, ej. [1, 3]
+      
       if (req.body.genreIds && req.body.genreIds.length > 0) {
         return movie.setGenres(req.body.genreIds).then(() => movie);
       }
@@ -35,7 +35,7 @@ exports.create = (req, res) => {
     });
 };
 
-// Retrieve all Movies, con filtro opcional por titulo (?title=) y por genero (?genreId=)
+
 exports.findAll = (req, res) => {
   const title = req.query.title;
   const condition = title ? { title: { [Op.iLike]: `%${title}%` } } : null;
@@ -52,7 +52,7 @@ exports.findAll = (req, res) => {
     });
 };
 
-// Retrieve only Movies currently in cartelera (status = true)
+
 exports.findAllActive = (req, res) => {
   Movie.findAll({
     where: { status: true },
@@ -66,7 +66,7 @@ exports.findAllActive = (req, res) => {
     });
 };
 
-// Find a single Movie by id, con generos y reparto completos
+
 exports.findOne = (req, res) => {
   const id = req.params.id;
 
@@ -87,7 +87,7 @@ exports.findOne = (req, res) => {
     });
 };
 
-// Update a Movie by id
+
 exports.update = (req, res) => {
   const id = req.params.id;
 
@@ -104,7 +104,7 @@ exports.update = (req, res) => {
     });
 };
 
-// Delete a Movie by id
+
 exports.delete = (req, res) => {
   const id = req.params.id;
 
@@ -121,7 +121,7 @@ exports.delete = (req, res) => {
     });
 };
 
-// Agrega una persona al reparto de la pelicula, con su role (ej. "actor", "director")
+
 exports.addCast = (req, res) => {
   const movieId = req.params.id;
   const { personId, role } = req.body;
@@ -136,7 +136,7 @@ exports.addCast = (req, res) => {
     .catch(err => res.status(500).send({ message: err.message || "Ocurrio un error al agregar al reparto." }));
 };
 
-// Quita a una persona del reparto de la pelicula
+
 exports.removeCast = (req, res) => {
   const { id: movieId, personId } = req.params;
 

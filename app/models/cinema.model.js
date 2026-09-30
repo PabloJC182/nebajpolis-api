@@ -1,4 +1,4 @@
-// app/models/cinema.model.js
+
 module.exports = (sequelize, Sequelize) => {
   const Cinema = sequelize.define("cinema", {
     name: {
