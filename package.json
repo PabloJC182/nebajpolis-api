@@ -1,0 +1,48 @@
+{
+  "name": "cine-api",
+  "version": "1.0.0",
+  "description": "API REST para el Sistema de Gestion de Cartelera de Cine (DERCAS)",
+  "keywords": [
+    "nodejs",
+    "express",
+    "sequelize",
+    "postgresql",
+    "rest",
+    "api",
+    "cine"
+  ],
+  "homepage": "https://github.com/PabloJC182/nebajpolis-api#readme",
+  "bugs": {
+    "url": "https://github.com/PabloJC182/nebajpolis-api/issues"
+  },
+  "repository": {
+    "type": "git",
+    "url": "git+https://github.com/PabloJC182/nebajpolis-api.git"
+  },
+  "license": "ISC",
+  "author": "Pablo",
+  "type": "commonjs",
+  "main": "server.js",
+  "scripts": {
+    "start": "node server.js",
+    "dev": "NODE_ENV=development node server.js",
+    "test": "echo \"Error: no test specified\" && exit 1"
+  },
+  "dependencies": {
+    "bcryptjs": "^2.4.3",
+    "body-parser": "^1.20.2",
+    "cors": "^2.8.6",
+    "dotenv": "^16.6.1",
+    "express": "^4.22.3",
+    "express-rate-limit": "^7.5.0",
+    "helmet": "^7.2.0",
+    "jsonwebtoken": "^9.0.2",
+    "nodemailer": "^6.9.16",
+    "pg": "^8.23.1",
+    "pg-hstore": "^2.3.4",
+    "qrcode": "^1.5.4",
+    "sequelize": "^6.37.8",
+    "stripe": "^16.12.0",
+    "swagger-ui-express": "^5.0.1"
+  }
+}

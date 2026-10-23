@@ -1,0 +1,14 @@
+module.exports = (sequelize, Sequelize) => {
+  const SaleFoodItem = sequelize.define("saleFoodItem", {
+    quantity: {
+      type: Sequelize.INTEGER,
+      allowNull: false,
+      defaultValue: 1
+    },
+    unitPrice: {
+      type: Sequelize.DECIMAL(10, 2),
+      allowNull: false
+    }
+  });
+  return SaleFoodItem;
+};
