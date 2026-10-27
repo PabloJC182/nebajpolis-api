@@ -52,6 +52,14 @@ db.reviews = require("./review.model.js")(sequelize, Sequelize);
 db.foodItems = require("./foodItem.model.js")(sequelize, Sequelize);
 db.banners = require("./banner.model.js")(sequelize, Sequelize);
 db.saleFoodItems = require("./saleFoodItem.model.js")(sequelize, Sequelize);
+db.auditLogs = require("./auditLog.model.js")(sequelize, Sequelize);
+db.apiKeys = require("./apiKey.model.js")(sequelize, Sequelize);
+db.reportSchedules = require("./reportSchedule.model.js")(sequelize, Sequelize);
+db.coupons = require("./coupon.model.js")(sequelize, Sequelize);
+db.combos = require("./combo.model.js")(sequelize, Sequelize);
+db.comboItems = require("./comboItem.model.js")(sequelize, Sequelize);
+db.stockMovements = require("./stockMovement.model.js")(sequelize, Sequelize);
+db.cashCloses = require("./cashClose.model.js")(sequelize, Sequelize);
 
 
 
@@ -139,6 +147,12 @@ db.sales.hasMany(db.saleFoodItems, { foreignKey: "saleId" });
 db.saleFoodItems.belongsTo(db.sales, { foreignKey: "saleId" });
 db.foodItems.hasMany(db.saleFoodItems, { foreignKey: "foodItemId" });
 db.saleFoodItems.belongsTo(db.foodItems, { foreignKey: "foodItemId" });
+db.combos.hasMany(db.comboItems, { foreignKey: "comboId", onDelete: "CASCADE" });
+db.comboItems.belongsTo(db.combos, { foreignKey: "comboId" });
+db.foodItems.hasMany(db.comboItems, { foreignKey: "foodItemId", onDelete: "CASCADE" });
+db.comboItems.belongsTo(db.foodItems, { foreignKey: "foodItemId" });
+db.foodItems.hasMany(db.stockMovements, { foreignKey: "foodItemId", onDelete: "CASCADE" });
+db.stockMovements.belongsTo(db.foodItems, { foreignKey: "foodItemId" });
 db.appUsers.hasMany(db.passwordResets, { foreignKey: "userId" });
 db.passwordResets.belongsTo(db.appUsers, { foreignKey: "userId" });
 module.exports = db;

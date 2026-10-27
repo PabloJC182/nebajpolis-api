@@ -21,7 +21,10 @@ module.exports = (sequelize, Sequelize) => {
     status: {
       type: Sequelize.BOOLEAN,
       defaultValue: true
-    }
+    },
+    // Existencias: null = sin control de inventario. Solo cambia por /inventario o por ventas (queda en el kardex).
+    stock: { type: Sequelize.INTEGER },
+    stockMin: { type: Sequelize.INTEGER, defaultValue: 5 }
   });
   return FoodItem;
 };

@@ -88,15 +88,60 @@ const paths = {
   "/reviews/update/{id}": { put: user(op("Resenas", "Editar mi resena", { parameters: [id] })) },
   "/reviews/delete/{id}": { delete: user(op("Resenas", "Eliminar mi resena (o cualquiera si eres admin)", { parameters: [id] })) },
 
-  "/tickets/validar": { post: admin(op("Entradas", "Validar el QR de una entrada en la sala y marcarla como usada", { requestBody: body({ code: s(), marcar: s("boolean") }, ["code"]) })) },
-  "/stats/resumen": { get: admin(op("Estadisticas", "Resumen para el panel admin (?dias=14)")) }
+  "/sales/taquilla/mias": { get: user(op("Ventas", "Ventas de taquilla del cajero autenticado (?fecha=YYYY-MM-DD). Rol taquilla o admin")) },
+
+  "/users": { get: admin(op("Usuarios", "Listar usuarios con su rol")) },
+  "/users/{id}/role": { put: admin(op("Usuarios", "Cambiar el rol (customer, taquilla, analista, admin). No se puede cambiar el propio ni quitar al ultimo admin", { parameters: [id], requestBody: body({ role: s("string", { enum: ["customer", "taquilla", "analista", "admin"] }) }, ["role"]) })) },
+
+  "/reportes/resumen": { get: user(op("Reportes", "KPIs y series del periodo. Rol analista o admin. Filtros: desde, hasta (YYYY-MM-DD), cinemaId, movieId, canal (online|box_office), tipo (tickets|food)")) },
+  "/reportes/exportar/{tipo}.csv": { get: user(op("Reportes", "Exportar CSV (UTF-8 con BOM). tipo: ventas, boletos, comida, funciones. Analista/admin. ?pii=1 incluye cliente y correo solo para admin", { parameters: [{ name: "tipo", in: "path", required: true, schema: { type: "string", enum: ["ventas", "boletos", "comida", "funciones"] } }] })) },
+  "/reportes/corte-caja": { get: user(op("Reportes", "Corte de caja por cajero y metodo (efectivo/POS). Taquilla ve solo el suyo; analista/admin ven todos. ?fecha=")) },
+
+  "/auditoria": { get: admin(op("Auditoria", "Bitacora de cambios (quien, cuando, antes/despues). Filtros: modulo, usuario, desde, hasta, pagina")) },
+  "/inventario": { get: admin(op("Inventario", "Existencias de dulceria (stock null = sin control)")) },
+  "/inventario/movimientos": { get: admin(op("Inventario", "Kardex de movimientos de stock")) },
+  "/inventario/{id}/ajuste": { post: admin(op("Inventario", "Ajustar stock. tipo: reposicion, merma o conteo", { parameters: [id], requestBody: body({ tipo: s(), cantidad: s("integer"), nota: s() }, ["tipo", "cantidad"]) })) },
+  "/inventario/{id}/config": { put: admin(op("Inventario", "Configurar stock minimo o desactivar el control", { parameters: [id], requestBody: body({ stockMin: s("integer"), controlar: s("boolean") }) })) },
+  "/cupones": { get: admin(op("Cupones", "Listar cupones con sus usos")) },
+  "/cupones/create/": { post: admin(op("Cupones", "Crear cupon (percent o fixed; appliesTo all|tickets|food; minAmount, maxUses, perUserLimit, validFrom/validTo)", { requestBody: body({ code: s(), type: s(), value: s("number"), appliesTo: s() }, ["code", "type", "value"]) })) },
+  "/cupones/update/{id}": { put: admin(op("Cupones", "Editar cupon", { parameters: [id] })) },
+  "/cupones/delete/{id}": { delete: admin(op("Cupones", "Eliminar cupon (si ya se uso solo se desactiva)", { parameters: [id] })) },
+  "/cupones/validar": { post: op("Cupones", "Validar un codigo contra los montos del carrito (limitado a 30 intentos / 15 min)", { requestBody: body({ code: s(), subBoletos: s("number"), subComida: s("number"), guestEmail: s() }, ["code"]) }) },
+  "/combos": { get: op("Combos", "Combos vigentes (boleto + comida a precio especial)") },
+  "/combos/todos": { get: admin(op("Combos", "Todos los combos")) },
+  "/combos/create/": { post: admin(op("Combos", "Crear combo")) },
+  "/combos/update/{id}": { put: admin(op("Combos", "Editar combo", { parameters: [id] })) },
+  "/combos/delete/{id}": { delete: admin(op("Combos", "Eliminar combo (si ya se uso solo se desactiva)", { parameters: [id] })) },
+  "/llaves": {
+    get: admin(op("Llaves API", "Listar llaves del proveedor de datos (nunca se muestra la llave completa)")),
+    post: admin(op("Llaves API", "Crear llave. Se muestra UNA sola vez; solo se guarda su hash", { requestBody: body({ name: s(), expiresAt: s() }, ["name"]) }))
+  },
+  "/llaves/{id}": { delete: admin(op("Llaves API", "Revocar llave", { parameters: [id] })) },
+  "/datos": { get: { ...op("Datos externos", "Indice de endpoints para el proveedor de datos"), security: [{ apiKey: [] }], description: "Requiere la cabecera x-api-key (llave del proveedor de datos). Solo lectura y sin datos personales." } },
+  "/datos/resumen": { get: { ...op("Datos externos", "KPIs del periodo (mismos filtros que /reportes/resumen)"), security: [{ apiKey: [] }], description: "Requiere la cabecera x-api-key (llave del proveedor de datos). Solo lectura y sin datos personales." } },
+  "/datos/exportar/{tipo}.csv": { get: { ...op("Datos externos", "CSV sin datos personales. tipo: ventas, boletos, comida, funciones", { parameters: [{ name: "tipo", in: "path", required: true, schema: { type: "string" } }] }), security: [{ apiKey: [] }], description: "Requiere la cabecera x-api-key (llave del proveedor de datos). Solo lectura y sin datos personales." } },
+  "/datos/inventario": { get: { ...op("Datos externos", "Existencias de dulceria"), security: [{ apiKey: [] }], description: "Requiere la cabecera x-api-key (llave del proveedor de datos). Solo lectura y sin datos personales." } },
+  "/reporte-programado": {
+    get: admin(op("Reporte programado", "Ver la configuracion del reporte por correo")),
+    post: admin(op("Reporte programado", "Crear programacion (frecuencia weekly|daily y correo destinatario)", { requestBody: body({ email: s(), frequency: s() }, ["email"]) }))
+  },
+  "/reporte-programado/{id}": { put: admin(op("Reporte programado", "Editar programacion", { parameters: [id] })), delete: admin(op("Reporte programado", "Eliminar programacion", { parameters: [id] })) },
+  "/reporte-programado/{id}/enviar-ahora": { post: admin(op("Reporte programado", "Enviar ahora el reporte de los ultimos 7 dias (requiere BREVO_API_KEY y MAIL_FROM)", { parameters: [id] })) },
+  "/cierres/turno": { get: user(op("Cierre de caja", "Datos del turno abierto del cajero (sin revelar montos esperados). Taquilla o admin")) },
+  "/cierres": {
+    get: user(op("Cierre de caja", "Historial de cierres (taquilla ve los suyos; analista/admin todos)")),
+    post: user(op("Cierre de caja", "Cerrar caja con conteo ciego. Si hay diferencia exige nota (400 hayDiferencia)", { requestBody: body({ countedCash: s("number"), countedPos: s("number"), note: s() }, ["countedCash", "countedPos"]) }))
+  },
+
+  "/tickets/validar": { post: user(op("Entradas", "Validar el QR de una entrada o pedido de comida y marcarlo como usado. Rol taquilla o admin", { requestBody: body({ code: s(), marcar: s("boolean") }, ["code"]) })) },
+  "/stats/resumen": { get: user(op("Estadisticas", "Resumen para el panel (?dias=14). Rol analista o admin")) }
 };
 
 const spec = {
   openapi: "3.0.3",
   info: { title: "Nebajpolis - Cine API", version: "1.0.0", description: "API REST del portal de cartelera y venta de boletos. Autenticacion con JWT: usa el boton Authorize con el accessToken de /auth/signin." },
   servers: [{ url: "/api" }],
-  components: { securitySchemes: { bearerAuth: { type: "http", scheme: "bearer", bearerFormat: "JWT" } } },
+  components: { securitySchemes: { bearerAuth: { type: "http", scheme: "bearer", bearerFormat: "JWT" }, apiKey: { type: "apiKey", in: "header", name: "x-api-key" } } },
   paths
 };
 

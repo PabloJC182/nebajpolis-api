@@ -4,6 +4,9 @@ const Op = db.Sequelize.Op;
 const ticketCode = require("../utils/ticketCode.js");
 const mail = require("../services/mail.service.js");
 const promoUtil = require("../utils/promo.js");
+const stock = require("../utils/stock.js");
+const desc = require("../utils/descuentos.js");
+const { registrar } = require("../utils/audit.js");
 const { puedeAcceder, nuevoToken, EMAIL_RE } = require("../utils/saleAccess.js");
 
 const SIN_TOKEN = { exclude: ["guestToken"] };
@@ -14,6 +17,8 @@ const SIN_TOKEN = { exclude: ["guestToken"] };
 // Venta online (cliente o invitado) o venta en taquilla (admin, ya pagada en caja)
 const procesarVenta = async (req, res, { taquilla = false } = {}) => {
   const { showId, seatIds, promotionId, foodItems } = req.body;
+  const comboId = req.body.comboId ? Number(req.body.comboId) : null;
+  const couponCode = String(req.body.couponCode || "").trim();
 
   if (!showId || !Array.isArray(seatIds) || seatIds.length === 0) {
     return res.status(400).send({ message: "showId y un arreglo seatIds no vacio son requeridos." });
@@ -34,6 +39,9 @@ const procesarVenta = async (req, res, { taquilla = false } = {}) => {
     return res.status(400).send({ message: "El correo del cliente no tiene un formato valido." });
   }
   const metodoCaja = ["cash", "pos"].includes(req.body.paymentMethod) ? req.body.paymentMethod : "cash";
+  if ((promotionId && comboId) || ((promotionId || comboId) && couponCode)) {
+    return res.status(400).send({ message: "Las promociones, los combos y los cupones no se pueden combinar entre si. Elige solo uno." });
+  }
 
   const t = await db.sequelize.transaction();
 
@@ -53,6 +61,7 @@ const procesarVenta = async (req, res, { taquilla = false } = {}) => {
     });
     for (const previa of reservasPropias) {
       await db.tickets.destroy({ where: { saleId: previa.id }, transaction: t });
+      await stock.reponerVenta(t, previa.id);
       previa.status = "expired";
       await previa.save({ transaction: t });
     }
@@ -89,8 +98,7 @@ const procesarVenta = async (req, res, { taquilla = false } = {}) => {
     }
 
     // Comida: el precio se toma de la BD, nunca del cliente
-    let totalComida = 0;
-    const lineasComida = [];
+    let lineasComida = [];
 
     if (comidaSolicitada.length > 0) {
       const productos = await db.foodItems.findAll({
@@ -111,12 +119,67 @@ const procesarVenta = async (req, res, { taquilla = false } = {}) => {
           return res.status(400).send({ message: "La cantidad maxima por producto es 20." });
         }
 
-        totalComida += parseFloat(producto.price) * cantidad;
-        lineasComida.push({ foodItemId: producto.id, quantity: cantidad, unitPrice: producto.price });
+        lineasComida.push({ foodItemId: producto.id, quantity: cantidad, unitPrice: parseFloat(producto.price) });
       }
     }
 
-    const totalAmount = precioUnitario * seatIds.length + totalComida;
+    let boletosPrecios = seatIds.map(() => desc.r2(precioUnitario));
+    let descuentoTotal = 0;
+    let comboAplicado = null;
+    let cuponAplicado = null;
+
+    // Combo: N boletos + comida a precio especial (se prorratea entre sus lineas para que los reportes de boletos y comida cuadren)
+    if (comboId) {
+      const combo = await db.combos.findByPk(comboId, { include: [{ model: db.comboItems, include: [db.foodItems] }], transaction: t });
+      const ahora = new Date();
+      if (!combo || !combo.status || (combo.validFrom && new Date(combo.validFrom) > ahora) || (combo.validTo && new Date(combo.validTo) < ahora)) {
+        await t.rollback();
+        return res.status(400).send({ message: "El combo seleccionado no esta disponible." });
+      }
+      const veces = Math.min(Math.max(parseInt(req.body.comboQty, 10) || 1, 1), 5);
+      const boletosCombo = combo.ticketQty * veces;
+      if (seatIds.length < boletosCombo) {
+        await t.rollback();
+        return res.status(400).send({ message: `El combo "${combo.name}" incluye ${combo.ticketQty} boleto(s): elige al menos ${boletosCombo} asiento(s).` });
+      }
+      if (combo.comboItems.some(i => !i.foodItem || !i.foodItem.status)) {
+        await t.rollback();
+        return res.status(400).send({ message: `El combo "${combo.name}" incluye un producto que ya no esta disponible.` });
+      }
+      const comidaCombo = combo.comboItems.map(i => ({ foodItemId: i.foodItemId, quantity: i.quantity * veces, unitPrice: parseFloat(i.foodItem.price) }));
+      const base = boletosPrecios.slice(0, boletosCombo);
+      const lista = desc.totalDe(base, comidaCombo);
+      descuentoTotal = Math.max(0, desc.r2(lista - parseFloat(combo.price) * veces));
+      const ap = desc.aplicarDescuento(base, comidaCombo, descuentoTotal);
+      boletosPrecios = [...ap.boletos, ...boletosPrecios.slice(boletosCombo)];
+      lineasComida = [...ap.comida, ...lineasComida];
+      comboAplicado = combo;
+    }
+
+    // Cupon: no se combina con promocion ni combo (se valida arriba)
+    if (couponCode) {
+      try {
+        const r = await desc.evaluarCupon({
+          code: couponCode,
+          subBoletos: boletosPrecios.reduce((s, p) => s + p, 0),
+          subComida: lineasComida.reduce((s, l) => s + l.quantity * l.unitPrice, 0),
+          userId: esInvitado || taquilla ? null : req.userId,
+          guestEmail: guestEmail || null,
+          t
+        });
+        const ap = desc.aplicarDescuento(boletosPrecios, lineasComida, r.descuento, { boletos: r.aplicaBoletos, comida: r.aplicaComida });
+        boletosPrecios = ap.boletos;
+        lineasComida = ap.comida;
+        descuentoTotal = r.descuento;
+        cuponAplicado = r.cupon;
+      } catch (e) {
+        await t.rollback();
+        if (e.status) return res.status(e.status).send({ message: e.message, cuponInvalido: true });
+        throw e;
+      }
+    }
+
+    const totalAmount = desc.totalDe(boletosPrecios, lineasComida);
 
     const sale = await db.sales.create({
       userId: esInvitado || taquilla ? null : req.userId,
@@ -124,7 +187,11 @@ const procesarVenta = async (req, res, { taquilla = false } = {}) => {
       status: taquilla ? "paid" : "pending",
       ...(esInvitado ? { guestToken: nuevoToken() } : {}),
       ...(esInvitado || taquilla ? { guestEmail: guestEmail || null, guestName: guestName || null } : {}),
-      ...(taquilla ? { channel: "box_office", soldBy: req.userId } : {})
+      ...(taquilla ? { channel: "box_office", soldBy: req.userId } : {}),
+      ...(promotionId ? { promotionId: Number(promotionId) } : {}),
+      ...(comboAplicado ? { comboId: comboAplicado.id } : {}),
+      ...(cuponAplicado ? { couponId: cuponAplicado.id } : {}),
+      discountAmount: descuentoTotal
     }, { transaction: t });
 
     if (taquilla) {
@@ -132,11 +199,11 @@ const procesarVenta = async (req, res, { taquilla = false } = {}) => {
     }
 
     const tickets = await db.tickets.bulkCreate(
-      seatIds.map(seatId => ({
+      seatIds.map((seatId, i) => ({
         saleId: sale.id,
         showId: showId,
         seatId: seatId,
-        price: precioUnitario
+        price: boletosPrecios[i]
       })),
       { transaction: t }
     );
@@ -147,6 +214,9 @@ const procesarVenta = async (req, res, { taquilla = false } = {}) => {
           { transaction: t }
         )
       : [];
+
+    // Existencias: se apartan al reservar (y vuelven si la venta vence, se cancela o se reembolsa)
+    await stock.descontarVenta(t, sale.id, req.userId || null);
 
     await t.commit();
 
@@ -170,7 +240,8 @@ const procesarVenta = async (req, res, { taquilla = false } = {}) => {
     // El token de invitado solo se entrega aqui, a quien creo la venta
     res.send({ sale, tickets, foodItems: comida, expiresAt, ...(esInvitado ? { guestToken: sale.guestToken } : {}) });
   } catch (err) {
-    await t.rollback();
+    await t.rollback().catch(() => {});
+    if (err.sinStock) return res.status(409).send({ message: err.message, sinStock: true });
     res.status(500).send({ message: err.message || "Ocurrio un error al procesar la venta." });
   }
 };
@@ -203,16 +274,34 @@ exports.createFood = async (req, res) => {
       where: { id: { [Op.in]: items.map(f => f.foodItemId) }, status: true },
       transaction: t
     });
-    let total = 0;
-    const lineas = [];
+    let lineas = [];
     for (const item of items) {
       const cantidad = parseInt(item.quantity, 10);
       const producto = productos.find(p => p.id === parseInt(item.foodItemId, 10));
       if (!producto) { await t.rollback(); return res.status(404).send({ message: `Producto con id=${item.foodItemId} no encontrado o no disponible.` }); }
       if (cantidad > 20) { await t.rollback(); return res.status(400).send({ message: "La cantidad maxima por producto es 20." }); }
-      total += parseFloat(producto.price) * cantidad;
-      lineas.push({ foodItemId: producto.id, quantity: cantidad, unitPrice: producto.price });
+      lineas.push({ foodItemId: producto.id, quantity: cantidad, unitPrice: parseFloat(producto.price) });
     }
+
+    let descuentoTotal = 0;
+    let cuponAplicado = null;
+    const couponCode = String(req.body.couponCode || "").trim();
+    if (couponCode) {
+      try {
+        const r = await desc.evaluarCupon({
+          code: couponCode, subBoletos: 0, subComida: desc.totalDe([], lineas),
+          userId: esInvitado ? null : req.userId, guestEmail: esInvitado ? guestEmail : null, t
+        });
+        lineas = desc.aplicarDescuento([], lineas, r.descuento, { boletos: false, comida: true }).comida;
+        descuentoTotal = r.descuento;
+        cuponAplicado = r.cupon;
+      } catch (e) {
+        await t.rollback();
+        if (e.status) return res.status(e.status).send({ message: e.message, cuponInvalido: true });
+        throw e;
+      }
+    }
+    const total = desc.totalDe([], lineas);
     if (!(total > 0)) { await t.rollback(); return res.status(400).send({ message: "El total del pedido debe ser mayor a cero." }); }
 
     const sale = await db.sales.create({
@@ -221,9 +310,12 @@ exports.createFood = async (req, res) => {
       status: "pending",
       kind: "food",
       pickupCinemaId: cine.id,
+      ...(cuponAplicado ? { couponId: cuponAplicado.id } : {}),
+      discountAmount: descuentoTotal,
       ...(esInvitado ? { guestEmail, guestName: guestName || null, guestToken: nuevoToken() } : {})
     }, { transaction: t });
     const comida = await db.saleFoodItems.bulkCreate(lineas.map(l => ({ ...l, saleId: sale.id })), { transaction: t });
+    await stock.descontarVenta(t, sale.id, req.userId || null);
     await t.commit();
 
     const holdMinutes = parseInt(process.env.SALE_HOLD_MINUTES || "10", 10);
@@ -231,6 +323,7 @@ exports.createFood = async (req, res) => {
     res.send({ sale, foodItems: comida, expiresAt, ...(esInvitado ? { guestToken: sale.guestToken } : {}) });
   } catch (err) {
     await t.rollback().catch(() => {});
+    if (err.sinStock) return res.status(409).send({ message: err.message, sinStock: true });
     res.status(500).send({ message: err.message || "Ocurrio un error al crear el pedido." });
   }
 };
@@ -343,6 +436,7 @@ exports.cancelar = async (req, res) => {
     }
 
     await db.tickets.destroy({ where: { saleId: venta.id }, transaction: t });
+    await stock.reponerVenta(t, venta.id);
     venta.status = "cancelled";
     await venta.save({ transaction: t });
     await t.commit();
@@ -422,6 +516,7 @@ exports.reembolsar = async (req, res) => {
       resumen = `${primero?.show?.movie?.title ?? "Funcion"} · asientos ${tickets.map(x => `${x.seat.rowLabel}${x.seat.seatNumber}`).join(", ")}`;
     }
     await db.tickets.destroy({ where: { saleId: venta.id }, transaction: t });
+    await stock.reponerVenta(t, venta.id);
     venta.status = "refunded";
     venta.refundedAt = new Date();
     venta.refundAmount = venta.totalAmount;
@@ -430,6 +525,11 @@ exports.reembolsar = async (req, res) => {
     if (pago) { pago.status = "refunded"; await pago.save({ transaction: t }); }
     await t.commit();
 
+    registrar(req, {
+      action: "reembolsar", entity: "ventas", entityId: venta.id,
+      summary: `Reembolsó la venta #${venta.id} por Q${Number(venta.refundAmount).toFixed(2)} (${venta.channel === "box_office" ? "taquilla" : "web"})${motivo ? ` · Motivo: ${motivo}` : ""}`,
+      meta: { monto: Number(venta.refundAmount), canal: venta.channel, stripeRefundId }
+    });
     mail.enviarReembolso(venta.id).catch(err => console.error("[mail] No se pudo avisar del reembolso:", err.message));
 
     res.send({
@@ -440,5 +540,26 @@ exports.reembolsar = async (req, res) => {
     await t.rollback().catch(() => {});
     console.error("[sales] Error al reembolsar:", err.message);
     res.status(500).send({ message: err.message || "Error al reembolsar la venta." });
+  }
+};
+
+
+// GET /api/sales/taquilla/mias?fecha=YYYY-MM-DD  (taquilla): ventas de caja hechas por el propio cajero ese dia (hoy por defecto)
+exports.taquillaMias = async (req, res) => {
+  const fecha = /^\d{4}-\d{2}-\d{2}$/.test(req.query.fecha || "") ? req.query.fecha : new Date().toLocaleDateString("en-CA", { timeZone: "America/Guatemala" });
+  try {
+    const ventas = await db.sequelize.query(`
+      SELECT s.id, s."saleDate", s."totalAmount"::float AS "totalAmount", s.status, s.kind,
+             COALESCE(p.method, 'cash') AS "metodo",
+             (SELECT COUNT(*)::int FROM tickets t WHERE t."saleId" = s.id) AS "boletos",
+             (SELECT COALESCE(SUM(sf.quantity), 0)::int FROM "saleFoodItems" sf WHERE sf."saleId" = s.id) AS "productos"
+      FROM sales s
+      LEFT JOIN payments p ON p."saleId" = s.id
+      WHERE s.channel = 'box_office' AND s."soldBy" = :uid
+        AND (s."saleDate" AT TIME ZONE 'America/Guatemala')::date = CAST(:fecha AS date)
+      ORDER BY s."saleDate" DESC`, { replacements: { uid: req.userId, fecha }, type: db.Sequelize.QueryTypes.SELECT });
+    res.send({ fecha, ventas });
+  } catch (err) {
+    res.status(500).send({ message: err.message || "Error al obtener tus ventas de caja." });
   }
 };

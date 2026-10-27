@@ -1,6 +1,16 @@
 const db = require("../models");
 const FoodItem = db.foodItems;
 
+// Al publico solo se le dice si esta agotado o quedan pocas; nunca la cifra exacta de existencias
+const publico = (i) => {
+  const j = i.toJSON();
+  const controlado = j.stock !== null && j.stock !== undefined;
+  const agotado = controlado && j.stock <= 0;
+  const pocas = controlado && !agotado && j.stock <= (j.stockMin ?? 5);
+  delete j.stock; delete j.stockMin;
+  return { ...j, agotado, pocas };
+};
+
 exports.create = (req, res) => {
   if (!req.body.name || req.body.price === undefined) {
     return res.status(400).send({ message: "El nombre y el precio del producto son requeridos." });
@@ -27,7 +37,7 @@ exports.create = (req, res) => {
 exports.findAll = (req, res) => {
   FoodItem.findAll({ where: { status: true }, order: [["category", "ASC"], ["name", "ASC"]] })
     .then(data => {
-      res.send(data);
+      res.send(data.map(publico));
     })
     .catch(err => {
       res.status(500).send({
@@ -56,7 +66,7 @@ exports.findOne = (req, res) => {
       if (!data) {
         return res.status(404).send({ message: `Producto con id=${id} no encontrado.` });
       }
-      res.send(data);
+      res.send(publico(data));
     })
     .catch(err => {
       res.status(500).send({ message: "Error al obtener el producto con id=" + id });
@@ -65,7 +75,9 @@ exports.findOne = (req, res) => {
 
 exports.update = (req, res) => {
   const id = req.params.id;
-  FoodItem.update(req.body, { where: { id: id } })
+  // Las existencias solo cambian por /inventario o por ventas (queda en el kardex y la bitacora)
+  const { stock, stockMin, id: _id, ...permitido } = req.body;
+  FoodItem.update(permitido, { where: { id: id } })
     .then(num => {
       if (num == 1) {
         res.send({ message: "Producto actualizado exitosamente." });

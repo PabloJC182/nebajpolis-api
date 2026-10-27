@@ -184,4 +184,41 @@ async function enviarContacto({ name, email, subject, message }) {
   return enviar({ to: destino, replyTo: email, subject: `Contacto web: ${subject || "mensaje"} · ${name}`.slice(0, 120), html });
 }
 
-module.exports = { enviarEntradas, enviarRecuperacion, enviarReembolso, enviarContacto, configurado };
+
+const difMonto = (n) => `${Number(n) >= 0 ? "+" : "−"}${dinero(Math.abs(Number(n)))}`;
+
+// Reporte periodico para el dueno / proveedor (datos agregados, sin informacion personal de clientes)
+async function enviarReporte(to, { desde, hasta, etiqueta }, d) {
+  const k = d.resumen.kpi;
+  const pct = (n) => `${(Number(n) * 100).toFixed(0)}%`;
+  const fila = (a, b) => `<tr><td style="padding:6px 0;color:#9ca3af;font-size:13px">${esc(a)}</td><td style="padding:6px 0;text-align:right;font-weight:bold;font-size:14px">${esc(b)}</td></tr>`;
+  const lista = (titulo, filas) => filas.length ? `<h3 style="font-size:12px;letter-spacing:1px;text-transform:uppercase;color:#d8b4fe;margin:22px 0 6px">${esc(titulo)}</h3><table style="width:100%;border-collapse:collapse">${filas.join("")}</table>` : "";
+  const top = (arr, f) => arr.slice(0, 5).map(f);
+
+  const alertas = [];
+  for (const i of d.stockBajo) alertas.push(fila(i.name, i.agotado ? "AGOTADO" : `quedan ${i.stock} (mín. ${i.stockMin})`));
+  const cierres = d.cierres.map((c) => fila(`${c.cajero} · ${new Date(c.closedAt).toLocaleDateString("es-GT", { timeZone: "America/Guatemala" })}`, `efectivo ${difMonto(c.diffCash)} · POS ${difMonto(c.diffPos)}`));
+
+  const html = plantilla(`Reporte ${etiqueta}: ${desde} a ${hasta}`, `
+    <table style="width:100%;border-collapse:collapse">
+      ${fila("Ingresos netos", dinero(k.ingresos))}
+      ${fila("Ventas pagadas", k.ventas)}
+      ${fila("Boletos vendidos", k.boletos)}
+      ${fila("Ticket promedio", dinero(k.ticketPromedio))}
+      ${fila("Ocupación promedio", pct(k.ocupacionPromedio))}
+      ${fila("Compras de boletos con dulcería", pct(k.porcentajeConComida))}
+      ${fila("Reembolsos", `${k.reembolsos} (${dinero(k.montoReembolsado)})`)}
+      ${fila("No-show (boletos sin usar)", k.noShow)}
+      ${fila("Comida cobrada sin canjear", `${d.resumen.comidaPendiente.pedidos} pedidos · ${dinero(d.resumen.comidaPendiente.monto)}`)}
+    </table>
+    ${lista("Películas con más ingresos", top(d.resumen.porPelicula, (p) => fila(p.title, `${p.boletos} boletos · ${dinero(p.ingresos)}`)))}
+    ${lista("Dulcería: lo que más se vendió", top(d.resumen.comida, (c) => fila(c.name, `${c.unidades} u. · ${dinero(c.ingresos)}`)))}
+    ${lista("Cupones", top(d.resumen.cupones, (c) => fila(c.code, `${c.usos} usos · −${dinero(c.descuento)}`)))}
+    ${lista("Combos", top(d.resumen.combos, (c) => fila(c.name, `${c.ventas} ventas · ${dinero(c.ingresos)}`)))}
+    ${lista("⚠ Inventario por reponer", alertas)}
+    ${lista("⚠ Cierres de caja con diferencia", cierres)}
+    <p style="font-size:12px;color:#8b8d98;margin-top:22px">Ingresos netos = ventas pagadas (los reembolsos no cuentan). Horario de Guatemala.</p>`);
+  return enviar({ to, subject: `Nebajpolis · Reporte ${etiqueta} (${desde} a ${hasta})`, html });
+}
+
+module.exports = { enviarEntradas, enviarRecuperacion, enviarReembolso, enviarContacto, enviarReporte, configurado };

@@ -32,6 +32,12 @@ module.exports = (sequelize, Sequelize) => {
     // tickets (boletos, con o sin comida) | food (pedido de dulceria sin boletos, se recoge en el cine)
     kind: { type: Sequelize.STRING, defaultValue: "tickets" },
     pickupCinemaId: { type: Sequelize.INTEGER },
+    // Promocion aplicada (para reportes)
+    promotionId: { type: Sequelize.INTEGER },
+    couponId: { type: Sequelize.INTEGER },
+    comboId: { type: Sequelize.INTEGER },
+    // Descuento total concedido por cupon o combo (para reportes)
+    discountAmount: { type: Sequelize.DECIMAL(10, 2), defaultValue: 0 },
     pickedUpAt: { type: Sequelize.DATE }
   });
   return Sale;

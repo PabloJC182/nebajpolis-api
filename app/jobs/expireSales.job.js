@@ -5,6 +5,7 @@
 
 
 module.exports = (db) => {
+  const stock = require("../utils/stock.js");
   const HOLD_MINUTES = parseInt(process.env.SALE_HOLD_MINUTES || "10", 10);
 
   return async function expirePendingSales() {
@@ -23,6 +24,7 @@ module.exports = (db) => {
 
       for (const sale of ventasExpiradas) {
         await db.tickets.destroy({ where: { saleId: sale.id }, transaction: t });
+        await stock.reponerVenta(t, sale.id);
         sale.status = "expired";
         await sale.save({ transaction: t });
       }

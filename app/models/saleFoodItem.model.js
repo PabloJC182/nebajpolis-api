@@ -8,7 +8,9 @@ module.exports = (sequelize, Sequelize) => {
     unitPrice: {
       type: Sequelize.DECIMAL(10, 2),
       allowNull: false
-    }
+    },
+    // true = esta linea desconto existencias (solo entonces se devuelven al cancelar/reembolsar)
+    stockApplied: { type: Sequelize.BOOLEAN, defaultValue: false }
   });
   return SaleFoodItem;
 };

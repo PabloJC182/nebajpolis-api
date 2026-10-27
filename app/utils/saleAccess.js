@@ -10,6 +10,7 @@ const igual = (a, b) => {
 // Duenio (JWT), admin, o invitado con el token de esa venta (cabecera x-guest-token)
 exports.puedeAcceder = (venta, req) =>
   req.userRole === "admin" ||
+  (req.userRole === "taquilla" && !!req.userId && venta.soldBy === req.userId) ||
   (!!req.userId && venta.userId === req.userId) ||
   (!!venta.guestToken && igual(req.headers["x-guest-token"], venta.guestToken));
 

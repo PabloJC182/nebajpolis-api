@@ -1,13 +1,14 @@
 
 module.exports = app => {
   const sales = require("../controllers/sale.controller.js");
-  const { verifyToken, isAdmin, optionalAuth } = require("../middlewares/authJwt.js");
+  const { verifyToken, isAdmin, conRol, optionalAuth } = require("../middlewares/authJwt.js");
   var router = require("express").Router();
 
   
   router.post("/create/", [optionalAuth], sales.create);
   router.post("/create-food", [optionalAuth], sales.createFood);
-  router.post("/taquilla", [verifyToken, isAdmin], sales.taquilla);
+  router.post("/taquilla", [verifyToken, conRol("taquilla")], sales.taquilla);
+  router.get("/taquilla/mias", [verifyToken, conRol("taquilla")], sales.taquillaMias);
   router.get("/mias", [verifyToken], sales.findMine);
   router.get("/:id", [optionalAuth], sales.findOne);
   router.post("/:id/reenviar", [optionalAuth], sales.reenviar);
