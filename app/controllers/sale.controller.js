@@ -51,6 +51,11 @@ const procesarVenta = async (req, res, { taquilla = false } = {}) => {
       await t.rollback();
       return res.status(404).send({ message: `Funcion con id=${showId} no encontrada.` });
     }
+    // No se venden funciones desactivadas ni que ya empezaron hace mas de 30 minutos
+    if (show.status === false || new Date(show.showDatetime).getTime() < Date.now() - 30 * 60 * 1000) {
+      await t.rollback();
+      return res.status(400).send({ message: "Esta funcion ya no esta disponible para la venta. Elige otra funcion." });
+    }
 
     // Si el propio usuario tiene una reserva pendiente sobre estos asientos
     // (reintento, doble clic, boton atras), se libera para volver a reservar.
