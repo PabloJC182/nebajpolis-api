@@ -18,7 +18,10 @@ exports.create = (req, res) => {
 };
 
 exports.findAll = (req, res) => {
-  Person.findAll({ order: [["fullName", "ASC"]] })
+  Person.findAll({
+    attributes: { include: [[db.Sequelize.literal('(SELECT COUNT(*) FROM "movieCasts" mc WHERE mc."personId" = "person"."id")::int'), "movieCount"]] },
+    order: [["fullName", "ASC"]],
+  })
     .then(data => res.send(data))
     .catch(err => res.status(500).send({ message: err.message || "Ocurrio un error al listar el elenco." }));
 };

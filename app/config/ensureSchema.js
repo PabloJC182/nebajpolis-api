@@ -1,6 +1,13 @@
 // sequelize.sync() solo crea tablas nuevas: no agrega columnas a tablas que ya existen.
 // Estas sentencias (idempotentes) agregan las columnas nuevas sin borrar datos.
 const SENTENCIAS = [
+  // Enlaces de imagen largos (CDN con token): se amplían de 255 a 1000 caracteres
+  `ALTER TABLE IF EXISTS "movies" ADD COLUMN IF NOT EXISTS "country" VARCHAR(255)`,
+  `ALTER TABLE IF EXISTS "movies" ADD COLUMN IF NOT EXISTS "subtitles" VARCHAR(255)`,
+  `ALTER TABLE IF EXISTS "movies" ALTER COLUMN "posterUrl" TYPE VARCHAR(1000)`,
+  `ALTER TABLE IF EXISTS "movies" ALTER COLUMN "backdropUrl" TYPE VARCHAR(1000)`,
+  `ALTER TABLE IF EXISTS "movies" ALTER COLUMN "trailerUrl" TYPE VARCHAR(1000)`,
+  `ALTER TABLE IF EXISTS "people" ALTER COLUMN "photoUrl" TYPE VARCHAR(1000)`,
   `ALTER TABLE IF EXISTS "tickets" ADD COLUMN IF NOT EXISTS "usedAt" TIMESTAMP WITH TIME ZONE`,
   `ALTER TABLE IF EXISTS "sales" ADD COLUMN IF NOT EXISTS "emailSentAt" TIMESTAMP WITH TIME ZONE`,
   `ALTER TABLE IF EXISTS "sales" ADD COLUMN IF NOT EXISTS "guestEmail" VARCHAR(255)`,

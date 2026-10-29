@@ -1,5 +1,6 @@
 
 const db = require("../models");
+const MAX_POR_PRODUCTO = 10; // maximo de unidades de cada producto de dulceria por compra
 const Op = db.Sequelize.Op;
 const ticketCode = require("../utils/ticketCode.js");
 const mail = require("../services/mail.service.js");
@@ -99,6 +100,12 @@ const procesarVenta = async (req, res, { taquilla = false } = {}) => {
         await t.rollback();
         return res.status(400).send({ message: v.motivo, promoInvalida: true });
       }
+      // Si la funcion tiene promociones asignadas, solo aplican esas
+      const asignadas = await db.sequelize.query('SELECT "promotionId" FROM "showPromotion" WHERE "showId" = :showId', { replacements: { showId: show.id }, type: db.Sequelize.QueryTypes.SELECT, transaction: t });
+      if (asignadas.length && !asignadas.some((a) => Number(a.promotionId) === Number(promotion.id))) {
+        await t.rollback();
+        return res.status(400).send({ message: "Esta promocion no aplica a esta funcion.", promoInvalida: true });
+      }
       precioUnitario = precioUnitario * (1 - parseFloat(promotion.discountPercentage) / 100);
     }
 
@@ -114,6 +121,7 @@ const procesarVenta = async (req, res, { taquilla = false } = {}) => {
       for (const item of comidaSolicitada) {
         const cantidad = parseInt(item.quantity, 10);
         const producto = productos.find(p => p.id === parseInt(item.foodItemId, 10));
+        if (cantidad > MAX_POR_PRODUCTO) { await t.rollback(); return res.status(400).send({ message: `La cantidad maxima por producto es ${MAX_POR_PRODUCTO}.` }); }
 
         if (!producto) {
           await t.rollback();
@@ -284,7 +292,7 @@ exports.createFood = async (req, res) => {
       const cantidad = parseInt(item.quantity, 10);
       const producto = productos.find(p => p.id === parseInt(item.foodItemId, 10));
       if (!producto) { await t.rollback(); return res.status(404).send({ message: `Producto con id=${item.foodItemId} no encontrado o no disponible.` }); }
-      if (cantidad > 20) { await t.rollback(); return res.status(400).send({ message: "La cantidad maxima por producto es 20." }); }
+      if (cantidad > MAX_POR_PRODUCTO) { await t.rollback(); return res.status(400).send({ message: `La cantidad maxima por producto es ${MAX_POR_PRODUCTO}.` }); }
       lineas.push({ foodItemId: producto.id, quantity: cantidad, unitPrice: parseFloat(producto.price) });
     }
 

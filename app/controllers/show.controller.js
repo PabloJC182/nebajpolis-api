@@ -4,10 +4,17 @@ const Show = db.shows;
 const Op = db.Sequelize.Op;
 
 
+// La fecha y hora de una funcion nueva (o cambiada) no puede estar en el pasado
+const MSG_PASADA = "La fecha y hora de la funcion ya paso. Elige una hora futura.";
+const fechaValida = (v) => { const t = new Date(v).getTime(); return Number.isNaN(t) ? null : t; };
+
 exports.create = (req, res) => {
   if (!req.body.movieId || !req.body.roomId || !req.body.showDatetime || !req.body.basePrice) {
     return res.status(400).send({ message: "movieId, roomId, showDatetime y basePrice son requeridos." });
   }
+  const cuando = fechaValida(req.body.showDatetime);
+  if (cuando === null) return res.status(400).send({ message: "La fecha y hora de la funcion no es valida." });
+  if (cuando < Date.now()) return res.status(400).send({ message: MSG_PASADA });
 
   Show.create({
     movieId: req.body.movieId,
@@ -99,12 +106,30 @@ exports.findAvailableSeats = (req, res) => {
     .catch(err => res.status(500).send({ message: err.message || "Error al obtener disponibilidad de asientos." }));
 };
 
-exports.update = (req, res) => {
+exports.update = async (req, res) => {
   const id = req.params.id;
 
-  Show.update(req.body, { where: { id: id } })
-    .then(num => {
-      if (num == 1) res.send({ message: "Funcion actualizada exitosamente." });
+  // Si cambia la fecha/hora, la nueva no puede estar en el pasado (si no cambia, se pueden editar los demas campos)
+  if (req.body.showDatetime !== undefined) {
+    const nueva = fechaValida(req.body.showDatetime);
+    if (nueva === null) return res.status(400).send({ message: "La fecha y hora de la funcion no es valida." });
+    const actual = await Show.findByPk(id, { attributes: ["id", "showDatetime"] }).catch(() => null);
+    const cambio = !actual || new Date(actual.showDatetime).getTime() !== nueva;
+    if (cambio && nueva < Date.now()) return res.status(400).send({ message: MSG_PASADA });
+  }
+
+  const { promotionIds, ...campos } = req.body;
+
+  const actualizar = Object.keys(campos).length ? Show.update(campos, { where: { id: id } }).then(r => r[0]) : Show.count({ where: { id: id } });
+  actualizar
+    .then(async num => {
+      if (num == 1) {
+        if (Array.isArray(promotionIds)) {
+          const show = await Show.findByPk(id);
+          await show.setPromotions(promotionIds);
+        }
+        res.send({ message: "Funcion actualizada exitosamente." });
+      }
       else res.send({ message: `No se pudo actualizar la funcion con id=${id}. Puede que no exista.` });
     })
     .catch(err => res.status(500).send({ message: "Error al actualizar la funcion con id=" + id }));

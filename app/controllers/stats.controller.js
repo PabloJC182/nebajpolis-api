@@ -13,12 +13,12 @@ exports.resumen = async (req, res) => {
         COALESCE(SUM(s."totalAmount") FILTER (WHERE s.status = 'paid' AND s.channel = 'box_office'), 0)::float AS "ingresosTaquilla",
         COUNT(*) FILTER (WHERE s.status = 'refunded')::int AS "reembolsos",
         COALESCE(SUM(s."refundAmount") FILTER (WHERE s.status = 'refunded'), 0)::float AS "montoReembolsado"
-      FROM "sales" s`);
+      FROM "sales" s WHERE (s."saleDate" AT TIME ZONE 'America/Guatemala')::date >= (NOW() AT TIME ZONE 'America/Guatemala')::date - (:dias - 1)`, { dias });
 
     const [boletos] = await q(`
       SELECT COUNT(*)::int AS "total",
              COUNT(*) FILTER (WHERE t."usedAt" IS NOT NULL)::int AS "usados"
-      FROM "tickets" t JOIN "sales" s ON s.id = t."saleId" WHERE s.status = 'paid'`);
+      FROM "tickets" t JOIN "sales" s ON s.id = t."saleId" WHERE s.status = 'paid' AND (s."saleDate" AT TIME ZONE 'America/Guatemala')::date >= (NOW() AT TIME ZONE 'America/Guatemala')::date - (:dias - 1)`, { dias });
 
     const [clientes] = await q(`SELECT COUNT(*)::int AS "total" FROM "appUsers" WHERE role = 'customer'`);
 
@@ -26,7 +26,7 @@ exports.resumen = async (req, res) => {
       SELECT to_char(d::date, 'YYYY-MM-DD') AS "dia",
              COALESCE(v."ingresos", 0)::float AS "ingresos",
              COALESCE(v."ventas", 0)::int AS "ventas"
-      FROM generate_series((CURRENT_DATE - (:dias - 1) * INTERVAL '1 day'), CURRENT_DATE, INTERVAL '1 day') d
+      FROM generate_series(((NOW() AT TIME ZONE 'America/Guatemala')::date - (:dias - 1)), (NOW() AT TIME ZONE 'America/Guatemala')::date, INTERVAL '1 day') d
       LEFT JOIN (
         SELECT (s."saleDate" AT TIME ZONE 'America/Guatemala')::date AS dia,
                SUM(s."totalAmount") AS "ingresos", COUNT(*) AS "ventas"
@@ -40,14 +40,16 @@ exports.resumen = async (req, res) => {
       JOIN "sales" s ON s.id = t."saleId" AND s.status = 'paid'
       JOIN "shows" sh ON sh.id = t."showId"
       JOIN "movies" m ON m.id = sh."movieId"
-      GROUP BY m.id, m.title ORDER BY "boletos" DESC LIMIT 5`);
+      WHERE (s."saleDate" AT TIME ZONE 'America/Guatemala')::date >= (NOW() AT TIME ZONE 'America/Guatemala')::date - (:dias - 1)
+      GROUP BY m.id, m.title ORDER BY "boletos" DESC LIMIT 5`, { dias });
 
     const topComida = await q(`
       SELECT f.name, SUM(sf.quantity)::int AS "unidades", SUM(sf.quantity * sf."unitPrice")::float AS "ingresos"
       FROM "saleFoodItems" sf
       JOIN "sales" s ON s.id = sf."saleId" AND s.status = 'paid'
       JOIN "foodItems" f ON f.id = sf."foodItemId"
-      GROUP BY f.name ORDER BY "unidades" DESC LIMIT 5`);
+      WHERE (s."saleDate" AT TIME ZONE 'America/Guatemala')::date >= (NOW() AT TIME ZONE 'America/Guatemala')::date - (:dias - 1)
+      GROUP BY f.name ORDER BY "unidades" DESC LIMIT 5`, { dias });
 
     const ocupacion = await q(`
       SELECT sh.id, m.title, sh."showDatetime", r.name AS "sala", r.capacity::int AS "capacidad",
@@ -60,7 +62,7 @@ exports.resumen = async (req, res) => {
       GROUP BY sh.id, m.title, r.name, r.capacity
       ORDER BY sh."showDatetime" ASC LIMIT 8`);
 
-    const porEstado = await q(`SELECT status, COUNT(*)::int AS "total" FROM "sales" GROUP BY status ORDER BY "total" DESC`);
+    const porEstado = await q(`SELECT status, COUNT(*)::int AS "total" FROM "sales" s WHERE (s."saleDate" AT TIME ZONE 'America/Guatemala')::date >= (NOW() AT TIME ZONE 'America/Guatemala')::date - (:dias - 1) GROUP BY status ORDER BY "total" DESC`, { dias });
 
     res.send({ totales: { ...totales, clientes: clientes.total }, boletos, ventasPorDia, topPeliculas, topComida, ocupacion, porEstado });
   } catch (err) {

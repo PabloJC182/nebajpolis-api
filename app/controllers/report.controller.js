@@ -76,7 +76,7 @@ async function calcularResumen(f) {
       SELECT m.id, m.title, COUNT(t.id)::int AS "boletos", COALESCE(SUM(t.price), 0)::float AS "ingresos"
       FROM vf JOIN tickets t ON t."saleId" = vf.id JOIN shows sh ON sh.id = t."showId" JOIN movies m ON m.id = sh."movieId"
       WHERE (CAST(:peliculaId AS int) IS NULL OR m.id = CAST(:peliculaId AS int))
-      GROUP BY m.id, m.title ORDER BY "ingresos" DESC LIMIT 15`, f);
+      GROUP BY m.id, m.title ORDER BY "boletos" DESC, "ingresos" DESC LIMIT 15`, f);
 
     const porCine = await q(`${base}
       SELECT c.id, c.name, COUNT(*)::int AS "ventas", COALESCE(SUM(vf."totalAmount"), 0)::float AS "ingresos"
@@ -94,10 +94,18 @@ async function calcularResumen(f) {
       GROUP BY fi.name ORDER BY "ingresos" DESC LIMIT 15`, f);
 
     const promociones = await q(`${base}
-      SELECT p.id, p.name, COUNT(DISTINCT vf.id)::int AS "usos",
-             COALESCE(SUM(GREATEST(sh."basePrice" - t.price, 0)), 0)::float AS "descuento"
+      SELECT p.id, p.name, COUNT(DISTINCT vf.id)::int AS "usos", COUNT(t.id)::int AS "boletos",
+             COALESCE(SUM(t.price), 0)::float AS "ingresos",
+             COALESCE(SUM(GREATEST(sh."basePrice" - t.price, 0)), 0)::float AS "descuento",
+             COALESCE(AVG(t.price), 0)::float AS "precioPromedio"
       FROM vf JOIN promotions p ON p.id = vf."promotionId" JOIN tickets t ON t."saleId" = vf.id JOIN shows sh ON sh.id = t."showId"
-      GROUP BY p.id, p.name ORDER BY "usos" DESC`, f);
+      GROUP BY p.id, p.name ORDER BY "boletos" DESC`, f);
+
+    // Referencia para medir efectividad: ventas de boletos sin promocion en el mismo periodo
+    const [sinPromo] = await q(`${base}
+      SELECT COUNT(DISTINCT vf.id)::int AS "ventas", COUNT(t.id)::int AS "boletos",
+             COALESCE(SUM(t.price), 0)::float AS "ingresos", COALESCE(AVG(t.price), 0)::float AS "precioPromedio"
+      FROM vf JOIN tickets t ON t."saleId" = vf.id WHERE vf."promotionId" IS NULL`, f);
 
     const canales = await q(`${base}
       SELECT CASE WHEN vf.channel = 'box_office' THEN 'Taquilla' WHEN vf."userId" IS NULL THEN 'Web (invitado)' ELSE 'Web (con cuenta)' END AS "canal",
@@ -150,7 +158,7 @@ async function calcularResumen(f) {
         reembolsos: reem.reembolsos, montoReembolsado: reem.monto,
         ocupacionPromedio, funciones: ocupacion.length,
       },
-      porDia, porPelicula, porCine, porHorario, comida, promociones, canales,
+      porDia, porPelicula, porCine, porHorario, comida, promociones, sinPromo, canales,
       ocupacion: ocupacion.map((o) => ({ ...o, porcentaje: o.capacidad ? o.vendidos / o.capacidad : 0 })),
       comidaPendiente: pendiente, embudo, cupones, combos,
     };

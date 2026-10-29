@@ -6,7 +6,7 @@ module.exports = (sequelize, Sequelize) => {
       allowNull: false
     },
     photoUrl: {
-      type: Sequelize.STRING
+      type: Sequelize.STRING(1000)
     },
     birthDate: {
       type: Sequelize.DATEONLY

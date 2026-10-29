@@ -20,17 +20,23 @@ module.exports = (sequelize, Sequelize) => {
       type: Sequelize.STRING
     },
     posterUrl: {
-      type: Sequelize.STRING
+      type: Sequelize.STRING(1000)
     },
     
     
     backdropUrl: {
-      type: Sequelize.STRING
+      type: Sequelize.STRING(1000)
     },
     trailerUrl: {
-      type: Sequelize.STRING
+      type: Sequelize.STRING(1000)
     },
     originalLanguage: {
+      type: Sequelize.STRING
+    },
+    country: {
+      type: Sequelize.STRING
+    },
+    subtitles: {
       type: Sequelize.STRING
     },
     

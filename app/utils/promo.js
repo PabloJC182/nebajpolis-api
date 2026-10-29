@@ -11,6 +11,16 @@ const normalizarDias = (v) => {
 };
 const diasATexto = (v) => normalizarDias(v).join(",") || null;
 
+// Días en que aplica una promo: los configurados; si no hay ninguno, se deducen del nombre ("Martes 2x1" -> martes).
+// Así una promo de martes creada sin días no se cobra en funciones de otros días.
+const sinTildes = (t) => String(t || "").normalize("NFD").replace(/[\u0300-\u036f]/g, "").toLowerCase();
+const diasEfectivos = (promo) => {
+  const explicitos = normalizarDias(promo && promo.validDays);
+  if (explicitos.length) return explicitos;
+  const texto = sinTildes(promo && promo.name);
+  return DIAS.map((d, i) => (new RegExp("\\b" + sinTildes(d) + "s?\\b").test(texto) ? i : -1)).filter((i) => i >= 0);
+};
+
 const diaSemanaGT = (fecha) =>
   DIA_CORTO[new Intl.DateTimeFormat("en-US", { timeZone: TZ, weekday: "short" }).format(new Date(fecha))];
 
@@ -24,11 +34,11 @@ function validar(promo, fechaFuncion, ahora = new Date()) {
   if (!promo || !promo.status) return { ok: false, motivo: "La promocion no esta activa." };
   if (promo.validFrom && new Date(promo.validFrom) > ahora) return { ok: false, motivo: `La promocion "${promo.name}" aun no esta vigente.` };
   if (promo.validTo && new Date(promo.validTo) < ahora) return { ok: false, motivo: `La promocion "${promo.name}" ya vencio.` };
-  const dias = normalizarDias(promo.validDays);
+  const dias = diasEfectivos(promo);
   if (dias.length && !dias.includes(diaSemanaGT(fechaFuncion))) {
     return { ok: false, motivo: `La promocion "${promo.name}" solo aplica en funciones de ${textoDias(dias)}.` };
   }
   return { ok: true };
 }
 
-module.exports = { validar, normalizarDias, diasATexto, textoDias, diaSemanaGT };
+module.exports = { validar, diasEfectivos, normalizarDias, diasATexto, textoDias, diaSemanaGT };

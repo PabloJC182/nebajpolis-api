@@ -19,6 +19,8 @@ exports.create = (req, res) => {
     backdropUrl: req.body.backdropUrl,
     trailerUrl: req.body.trailerUrl,
     originalLanguage: req.body.originalLanguage,
+    country: req.body.country,
+    subtitles: req.body.subtitles,
     status: req.body.status !== undefined ? req.body.status : true
   })
     .then(movie => {
